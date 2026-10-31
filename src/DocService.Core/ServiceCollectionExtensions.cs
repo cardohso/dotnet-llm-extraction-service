@@ -1,6 +1,7 @@
 using DocService.Core.Extraction;
 using DocService.Core.Extraction.IncidentReports;
 using DocService.Core.Processing;
+using DocService.Core.Summaries;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -25,6 +26,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ExtractionSchemaRegistry>();
         services.AddSingleton<CostEstimator>();
         services.AddSingleton<ExtractionService>();
+        services.AddSingleton<SummaryService>();
         return services;
     }
 }
