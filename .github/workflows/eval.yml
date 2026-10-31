@@ -1,0 +1,24 @@
+name: Evaluation (real provider)
+
+# Manual only: calls the real provider and uses free-tier quota.
+on:
+  workflow_dispatch:
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Run golden-set evaluation against Groq
+        env:
+          Llm__ApiKey: ${{ secrets.GROQ_API_KEY }}
+        run: dotnet run --project eval/DocService.Eval -c Release -- --provider groq --out "$RUNNER_TEMP/eval"
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-results
+          path: ${{ runner.temp }}/eval
