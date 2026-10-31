@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/eval/">
+    <Project Path="eval/DocService.Eval/DocService.Eval.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/DocService.Api/DocService.Api.csproj" />
+    <Project Path="src/DocService.Core/DocService.Core.csproj" />
+    <Project Path="src/DocService.Llm/DocService.Llm.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DocService.Api.Tests/DocService.Api.Tests.csproj" />
+    <Project Path="tests/DocService.Core.Tests/DocService.Core.Tests.csproj" />
+    <Project Path="tests/DocService.Eval.Tests/DocService.Eval.Tests.csproj" />
+  </Folder>
+</Solution>

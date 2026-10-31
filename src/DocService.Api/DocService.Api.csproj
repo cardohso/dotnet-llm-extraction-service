@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <UserSecretsId>dotnet-llm-extraction-service</UserSecretsId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DocService.Core\DocService.Core.csproj" />
+    <ProjectReference Include="..\DocService.Llm\DocService.Llm.csproj" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="DocService.Api.Tests" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <UserSecretsId>dotnet-llm-extraction-service</UserSecretsId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\DocService.Core\DocService.Core.csproj" />
+    <ProjectReference Include="..\..\src\DocService.Llm\DocService.Llm.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="DocService.Eval.Tests" />
+  </ItemGroup>
+</Project>
