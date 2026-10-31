@@ -8,8 +8,8 @@ jobs:
   evaluate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
       - name: Run golden-set evaluation against Groq
@@ -18,7 +18,7 @@ jobs:
         run: dotnet run --project eval/DocService.Eval -c Release -- --provider groq --out "$RUNNER_TEMP/eval"
       - name: Upload report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: eval-results
           path: ${{ runner.temp }}/eval
