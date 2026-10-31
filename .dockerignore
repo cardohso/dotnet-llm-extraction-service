@@ -1,0 +1,10 @@
+**/bin/
+**/obj/
+.git/
+.github/
+.superpowers/
+.env
+eval/results/
+tests/
+docs/
+*.md

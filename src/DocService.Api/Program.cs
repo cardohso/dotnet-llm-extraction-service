@@ -9,6 +9,7 @@ using DocService.Api.RateLimiting;
 using DocService.Core;
 using DocService.Llm;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -62,6 +63,17 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check 
 app.MapExtract();
 app.MapSummarise();
 
-app.Run();
+try
+{
+    app.Run();
+}
+catch (OptionsValidationException ex)
+{
+    // Fail with a readable message and a clean exit code instead of an unhandled-exception crash.
+    app.Logger.LogCritical("Invalid configuration: {Failures}", string.Join(" ", ex.Failures));
+    return 1;
+}
+
+return 0;
 
 public partial class Program;
