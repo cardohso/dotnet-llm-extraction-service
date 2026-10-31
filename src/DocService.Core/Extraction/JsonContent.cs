@@ -2,25 +2,15 @@ namespace DocService.Core.Extraction;
 
 public static class JsonContent
 {
-    private const string Fence = "```";
-
-    /// <summary>Trims whitespace and removes a surrounding Markdown code fence, if present.</summary>
+    /// <summary>
+    /// Returns the outermost JSON object in a model reply, dropping Markdown fences or prose around it
+    /// (single- or multi-line). Text without an object is returned trimmed, so parsing reports the error.
+    /// </summary>
     public static string Normalize(string content)
     {
         var text = content.Trim();
-        if (!text.StartsWith(Fence, StringComparison.Ordinal))
-        {
-            return text;
-        }
-
-        var firstNewline = text.IndexOf('\n', StringComparison.Ordinal);
-        text = firstNewline < 0 ? string.Empty : text[(firstNewline + 1)..];
-        text = text.TrimEnd();
-        if (text.EndsWith(Fence, StringComparison.Ordinal))
-        {
-            text = text[..^Fence.Length];
-        }
-
-        return text.Trim();
+        var start = text.IndexOf('{', StringComparison.Ordinal);
+        var end = text.LastIndexOf('}');
+        return start >= 0 && end > start ? text[start..(end + 1)] : text;
     }
 }

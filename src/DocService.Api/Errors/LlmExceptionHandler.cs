@@ -8,17 +8,8 @@ public sealed partial class LlmExceptionHandler(
     IProblemDetailsService problemDetails,
     ILogger<LlmExceptionHandler> logger) : IExceptionHandler
 {
-    private const int ClientClosedRequest = 499;
-
     public async ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
     {
-        if (exception is OperationCanceledException && httpContext.RequestAborted.IsCancellationRequested)
-        {
-            LogClientCancelled(logger);
-            httpContext.Response.StatusCode = ClientClosedRequest;
-            return true;
-        }
-
         if (exception is not LlmException llmException)
         {
             return false;
@@ -50,9 +41,6 @@ public sealed partial class LlmExceptionHandler(
             },
         });
     }
-
-    [LoggerMessage(EventId = 100, Level = LogLevel.Information, Message = "Client cancelled the request")]
-    private static partial void LogClientCancelled(ILogger logger);
 
     [LoggerMessage(EventId = 101, Level = LogLevel.Warning, Message = "Provider failure {ExceptionType}: {Reason}")]
     private static partial void LogProviderFailure(ILogger logger, string exceptionType, string reason);

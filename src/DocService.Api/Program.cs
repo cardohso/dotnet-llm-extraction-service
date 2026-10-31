@@ -13,6 +13,10 @@ using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Kestrel does not bind Limits from configuration on its own; reject oversized bodies before they are read.
+builder.WebHost.ConfigureKestrel((context, kestrel) =>
+    kestrel.Limits.MaxRequestBodySize = context.Configuration.GetValue<long?>("Kestrel:Limits:MaxRequestBodySize") ?? 262_144);
+
 builder.Logging.ClearProviders();
 builder.Logging.AddJsonConsole(options => options.IncludeScopes = true);
 
@@ -46,12 +50,7 @@ builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = 
     problem.Extensions["traceId"] = Activity.Current?.Id ?? context.HttpContext.TraceIdentifier;
     if (problem.Type is null or { Length: 0 } || problem.Type.StartsWith("https://tools.ietf.org/", StringComparison.Ordinal))
     {
-        problem.Type = Problems.Type(problem.Status switch
-        {
-            StatusCodes.Status400BadRequest => "validation",
-            StatusCodes.Status404NotFound => "not-found",
-            _ => "internal-error",
-        });
+        problem.Type = Problems.DefaultTypeFor(problem.Status);
     }
 });
 

@@ -8,6 +8,16 @@ public static class Problems
 
     public static string Type(string suffix) => TypePrefix + suffix;
 
+    /// <summary>Type for problems the framework writes without one (status-code pages, Kestrel limits).</summary>
+    public static string DefaultTypeFor(int? status) => Type(status switch
+    {
+        StatusCodes.Status400BadRequest => "validation",
+        StatusCodes.Status404NotFound => "not-found",
+        StatusCodes.Status413PayloadTooLarge => "input-too-large",
+        StatusCodes.Status429TooManyRequests => "rate-limited",
+        _ => "internal-error",
+    });
+
     public static IResult From(ProcessingError error, IReadOnlyList<string> errors)
     {
         var detail = errors.Count > 0 ? errors[0] : null;

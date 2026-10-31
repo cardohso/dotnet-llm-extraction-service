@@ -119,7 +119,7 @@ curl -s localhost:8080/extract -H 'content-type: application/json' -d '{"schema"
 | Status | `type` suffix | When |
 |---|---|---|
 | 400 | `validation` | Blank or missing fields, malformed JSON, unknown schema, `maxSentences` out of range |
-| 413 | `input-too-large` | Text over 20,000 characters, or over 200 sentences for a summary |
+| 413 | `input-too-large` | Text over 20,000 characters, over 200 sentences for a summary, or a request body over 256 KB |
 | 422 | `llm-output-invalid` | Model output still invalid after the repair attempt; `reason` is `invalid-output`, `output-truncated` or `budget-exhausted`, plus an `errors` list |
 | 429 | `rate-limited` | This service's rate limiter rejected the request (`Retry-After` set) |
 | 502 | `provider-error` | The provider returned an error after retries (including a rejected API key) |
@@ -222,6 +222,8 @@ Actions the real run is a manual workflow (`eval.yml`) that uses the `GROQ_API_K
 - **Approximate pre-call token estimate** (characters ÷ 4). Actual usage from the provider is used after each call.
 - **No authentication.** Rate limiting protects a free quota, but the service is not meant for public
   deployment as it is.
+- **Per-IP limits assume direct connections.** There is no forwarded-headers handling, so behind a proxy
+  or load balancer every client shares one rate-limit bucket.
 - **Gemini and other providers are untested.** They should work by configuration (see below) but were
   not run.
 
@@ -287,6 +289,7 @@ variables using `__` for nesting, for example `Processing__MaxInputChars=10000`.
 | `Llm:Pricing:*PerMillionUsd` | `0` | Used for `estimatedCostUsd` |
 | `Llm:Resilience:*` | see file | Timeouts, retries, circuit breaker |
 | `Processing:*` | see file | Input limit, token budget, output token caps |
+| `Kestrel:Limits:MaxRequestBodySize` | `262144` | Request body limit in bytes, enforced before the body is read |
 | `RateLimiting:*` | 5 burst, 1 token / 3 s per IP; 4 concurrent, queue 10 | Request limits |
 
 For Gemini's OpenAI-compatible endpoint (untested), set `Llm:BaseUrl` to
@@ -297,7 +300,7 @@ For Gemini's OpenAI-compatible endpoint (untested), set `Llm:BaseUrl` to
 
 CI ([`ci.yml`](.github/workflows/ci.yml)) runs on every push and pull request: `dotnet format
 --verify-no-changes`, a Release build with warnings as errors and nullable reference types on, the full
-test suite (142 tests, no network), and the evaluation harness against the fake provider.
+test suite (156 tests, no network), and the evaluation harness against the fake provider.
 
 ## Licence
 

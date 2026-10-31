@@ -25,8 +25,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IExtractionSchema, IncidentReportSchema>();
         services.AddSingleton<ExtractionSchemaRegistry>();
         services.AddSingleton<CostEstimator>();
-        services.AddSingleton<ExtractionService>();
-        services.AddSingleton<SummaryService>();
+
+        // Transient: they hold the typed HttpClient, which IHttpClientFactory must be able to rotate.
+        services.AddTransient<ExtractionService>();
+        services.AddTransient<SummaryService>();
         return services;
     }
 }

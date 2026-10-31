@@ -93,6 +93,21 @@ public class OpenAiCompatibleLlmClientTests
         Assert.Equal(TimeSpan.FromSeconds(7), ex.RetryAfter);
     }
 
+    [Fact]
+    public async Task RetryAfterDateInThePast_IsZeroNotNegative()
+    {
+        var handler = new StubHttpMessageHandler((_, _) =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.TooManyRequests);
+            response.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(DateTimeOffset.UtcNow.AddMinutes(-1));
+            return Task.FromResult(response);
+        });
+
+        var ex = await Assert.ThrowsAsync<LlmRateLimitedException>(() => Create(handler).CompleteAsync(Request(), Ct));
+
+        Assert.Equal(TimeSpan.Zero, ex.RetryAfter);
+    }
+
     [Theory]
     [InlineData(HttpStatusCode.Unauthorized)]
     [InlineData(HttpStatusCode.Forbidden)]

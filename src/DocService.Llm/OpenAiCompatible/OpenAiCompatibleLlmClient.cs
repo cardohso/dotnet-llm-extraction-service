@@ -111,7 +111,13 @@ public sealed class OpenAiCompatibleLlmClient(
             return delta;
         }
 
-        return header?.Date is { } date ? date - timeProvider.GetUtcNow() : null;
+        if (header?.Date is not { } date)
+        {
+            return null;
+        }
+
+        var wait = date - timeProvider.GetUtcNow();
+        return wait > TimeSpan.Zero ? wait : TimeSpan.Zero;
     }
 
     private static JsonObject BuildBody(LlmOptions settings, LlmRequest request)

@@ -74,6 +74,17 @@ public class SummaryServiceTests
     }
 
     [Fact]
+    public async Task Summarise_PromptCapsSourcesAtSentenceCount()
+    {
+        var fake = new FakeLlmClient().Enqueue(Reply("It stopped.", 0));
+
+        await Create(fake).SummariseAsync("The train stopped.", 5, Ct);
+
+        Assert.Contains("(1 to 1 entries)", fake.Requests[0].SystemPrompt, StringComparison.Ordinal);
+        Assert.Contains("at most 1 sentence", fake.Requests[0].SystemPrompt, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Summarise_MaxOutputTokensIs600()
     {
         var fake = new FakeLlmClient().Enqueue(Reply("x", 0));

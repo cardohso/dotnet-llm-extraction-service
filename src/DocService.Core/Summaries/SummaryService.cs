@@ -45,7 +45,7 @@ public sealed class SummaryService(
 
         var call = new RepairRequest<SummaryResult>(
             TaskName,
-            SummaryPrompts.System(maxSentences),
+            SummaryPrompts.System(Math.Min(maxSentences, sentences.Count)),
             SummaryPrompts.Document(sentences),
             SummaryPrompts.Schema,
             settings.SummariseMaxOutputTokens,
