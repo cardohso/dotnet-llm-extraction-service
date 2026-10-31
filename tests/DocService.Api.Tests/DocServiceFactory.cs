@@ -12,7 +12,15 @@ public sealed class DocServiceFactory : WebApplicationFactory<Program>
 {
     private readonly Dictionary<string, string> _settings = new() { ["Llm:Provider"] = "Fake" };
 
+    private readonly List<Action<IServiceCollection>> _overrides = [];
+
     public FakeLlmClient Fake { get; } = new();
+
+    public DocServiceFactory WithServices(Action<IServiceCollection> configure)
+    {
+        _overrides.Add(configure);
+        return this;
+    }
 
     public DocServiceFactory WithSetting(string key, string value)
     {
@@ -31,6 +39,10 @@ public sealed class DocServiceFactory : WebApplicationFactory<Program>
         {
             services.RemoveAll<ILlmClient>();
             services.AddSingleton<ILlmClient>(Fake);
+            foreach (var configure in _overrides)
+            {
+                configure(services);
+            }
         });
     }
 }

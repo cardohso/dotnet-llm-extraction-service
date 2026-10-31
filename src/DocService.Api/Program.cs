@@ -4,13 +4,21 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using DocService.Api.Endpoints;
 using DocService.Api.Errors;
+using DocService.Api.Health;
+using DocService.Api.RateLimiting;
 using DocService.Core;
 using DocService.Llm;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Logging.ClearProviders();
+builder.Logging.AddJsonConsole(options => options.IncludeScopes = true);
+
 builder.Services.AddDocServiceCore(builder.Configuration);
 builder.Services.AddLlmClient(builder.Configuration);
+builder.Services.AddDocServiceRateLimiting(builder.Configuration);
+builder.Services.AddHealthChecks().AddCheck<ProviderCircuitHealthCheck>("llm-circuit", tags: ["ready"]);
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
@@ -41,6 +49,7 @@ var app = builder.Build();
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+app.UseRateLimiter();
 
 app.MapOpenApi();
 if (app.Environment.IsDevelopment())
@@ -48,7 +57,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(options => options.SwaggerEndpoint("/openapi/v1.json", "DocService v1"));
 }
 
-app.MapGet("/health/live", () => Results.Ok());
+app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
+app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("ready") });
 app.MapExtract();
 app.MapSummarise();
 
