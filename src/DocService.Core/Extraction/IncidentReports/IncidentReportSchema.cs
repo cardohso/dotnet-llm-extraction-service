@@ -22,8 +22,10 @@ public sealed class IncidentReportSchema(TimeProvider timeProvider) : IExtractio
     public string Instructions =>
         "Extract an incident report. Use only facts stated in the text. " +
         "Use null for date or location when they are not stated, an empty array when no equipment is named, " +
+        "list only equipment involved in this incident (not trains or vehicles themselves), " +
         "and \"unknown\" for severity when it cannot be determined. " +
-        "Never infer a date from relative words such as \"yesterday\" or \"last week\"; use null instead. " +
+        "Never infer a date from relative words such as \"yesterday\" or \"last week\", or complete a date that has no year; use null instead. " +
+        "Ignore dates of earlier, unrelated events and the date a report was written. " +
         "Write the summary in the language of the text, in one sentence of at most 300 characters.";
 
     public LlmJsonSchema ResponseSchema { get; } = new(SchemaName, (JsonObject)JsonSchema.DeepClone());

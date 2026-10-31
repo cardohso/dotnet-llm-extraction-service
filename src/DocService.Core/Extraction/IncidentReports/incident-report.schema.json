@@ -14,7 +14,7 @@
     "equipment": {
       "type": "array",
       "items": { "type": "string" },
-      "description": "Distinct pieces of equipment involved, as written in the text. Empty if none are named."
+      "description": "Distinct infrastructure or on-board equipment involved in this incident (e.g. signals, points, detectors, barriers), as written in the text. Exclude trains, wagons and road vehicles themselves, and equipment that was not involved. Empty if none are named."
     },
     "severity": {
       "type": "string",

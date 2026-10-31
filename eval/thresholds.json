@@ -1,0 +1,6 @@
+{
+  "validAfterRepair": 0.95,
+  "overallFieldAccuracy": 0.85,
+  "severity": 0.80,
+  "p95LatencyMs": 5000
+}
