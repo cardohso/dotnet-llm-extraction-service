@@ -1,0 +1,29 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["date", "location", "equipment", "severity", "summary"],
+  "properties": {
+    "date": {
+      "type": ["string", "null"],
+      "description": "Date of the incident as YYYY-MM-DD, or null if the text does not state a full calendar date."
+    },
+    "location": {
+      "type": ["string", "null"],
+      "description": "Where the incident happened, as written in the text, or null if not stated."
+    },
+    "equipment": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Distinct pieces of equipment involved, as written in the text. Empty if none are named."
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "critical", "unknown"],
+      "description": "Severity as stated or clearly implied by the text; unknown if it cannot be determined."
+    },
+    "summary": {
+      "type": "string",
+      "description": "One-sentence summary of the incident, at most 300 characters."
+    }
+  }
+}
