@@ -1,3 +1,4 @@
+using System.Net;
 using DocService.Core.Llm;
 using DocService.Llm.Fake;
 using DocService.Llm.OpenAiCompatible;
@@ -7,24 +8,27 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
 using Polly;
-using Polly.CircuitBreaker;
 
 namespace DocService.Llm;
 
 public static class ServiceCollectionExtensions
 {
+    /// <summary>A provider 429 asking us to wait longer than this is returned to the caller instead of retried.</summary>
+    private static readonly TimeSpan MaxRetryAfterWait = TimeSpan.FromSeconds(5);
+
     /// <summary>
     /// Registers <see cref="ILlmClient"/> for the provider chosen in the <c>Llm</c> section.
     /// Returns the HTTP client builder for the real provider (so callers can add handlers), or null for the fake.
     /// Resilience (timeouts, retries, circuit breaker) can be tuned under <c>Llm:Resilience</c>.
     /// </summary>
+    /// <exception cref="OptionsValidationException">Llm:Provider is not a known provider.</exception>
     public static IHttpClientBuilder? AddLlmClient(this IServiceCollection services, IConfiguration configuration)
     {
         var section = configuration.GetSection(LlmOptions.SectionName);
+        var provider = ReadProvider(section);
         services.AddSingleton<IValidateOptions<LlmOptions>, LlmOptionsValidator>();
         services.AddOptions<LlmOptions>().Bind(section).ValidateOnStart();
 
-        var provider = section.Get<LlmOptions>()?.Provider ?? LlmProvider.OpenAiCompatible;
         if (provider == LlmProvider.Fake)
         {
             services.AddSingleton<ILlmClient>(_ => new FakeLlmClient { Responder = CannedResponder.Respond });
@@ -33,9 +37,8 @@ public static class ServiceCollectionExtensions
 
         services.TryAddSingleton(TimeProvider.System);
 
-        var circuit = new CircuitBreakerStateProvider();
-        services.AddSingleton(circuit);
-        services.AddSingleton<ILlmCircuitState>(new PollyCircuitState(circuit));
+        var circuit = new LlmCircuitState();
+        services.AddSingleton<ILlmCircuitState>(circuit);
 
         var httpClient = services.AddHttpClient<ILlmClient, OpenAiCompatibleLlmClient>((serviceProvider, client) =>
             client.BaseAddress = serviceProvider.GetRequiredService<IOptions<LlmOptions>>().Value.BaseUrl);
@@ -50,11 +53,14 @@ public static class ServiceCollectionExtensions
                 options.Retry.Delay = TimeSpan.FromMilliseconds(500);
                 options.Retry.UseJitter = true;
                 options.Retry.ShouldRetryAfterHeader = true;
+                options.Retry.ShouldHandle = args => ValueTask.FromResult(ShouldRetry(args.Outcome));
                 options.CircuitBreaker.FailureRatio = 0.5;
                 options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(30);
                 options.CircuitBreaker.MinimumThroughput = 5;
                 options.CircuitBreaker.BreakDuration = TimeSpan.FromSeconds(30);
-                options.CircuitBreaker.StateProvider = circuit;
+                options.CircuitBreaker.OnOpened = _ => SetCircuit(circuit, isOpen: true);
+                options.CircuitBreaker.OnHalfOpened = _ => SetCircuit(circuit, isOpen: false);
+                options.CircuitBreaker.OnClosed = _ => SetCircuit(circuit, isOpen: false);
             });
 
         var overrides = section.GetSection("Resilience");
@@ -64,5 +70,47 @@ public static class ServiceCollectionExtensions
         }
 
         return httpClient;
+    }
+
+    private static LlmProvider ReadProvider(IConfigurationSection section)
+    {
+        var value = section["Provider"];
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return LlmProvider.OpenAiCompatible;
+        }
+
+        if (Enum.TryParse<LlmProvider>(value, ignoreCase: true, out var provider) && Enum.IsDefined(provider)
+            && !int.TryParse(value, out _))
+        {
+            return provider;
+        }
+
+        throw new OptionsValidationException(
+            LlmOptions.SectionName,
+            typeof(LlmOptions),
+            [$"Llm:Provider '{value}' is not valid. Use OpenAiCompatible or Fake."]);
+    }
+
+    /// <summary>Transient failures are retried, except a 429 whose Retry-After is too long to wait out within the request.</summary>
+    private static bool ShouldRetry(Outcome<HttpResponseMessage> outcome)
+    {
+        if (outcome.Result is { StatusCode: HttpStatusCode.TooManyRequests } response)
+        {
+            var header = response.Headers.RetryAfter;
+            var wait = header?.Delta ?? (header?.Date is { } date ? date - DateTimeOffset.UtcNow : null);
+            if (wait > MaxRetryAfterWait)
+            {
+                return false;
+            }
+        }
+
+        return HttpClientResiliencePredicates.IsTransient(outcome);
+    }
+
+    private static ValueTask SetCircuit(LlmCircuitState circuit, bool isOpen)
+    {
+        circuit.Set(isOpen);
+        return ValueTask.CompletedTask;
     }
 }

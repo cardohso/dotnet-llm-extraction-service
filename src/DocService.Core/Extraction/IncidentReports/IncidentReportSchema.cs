@@ -71,9 +71,10 @@ public sealed class IncidentReportSchema(TimeProvider timeProvider) : IExtractio
             errors.Add($"equipment: at most {MaxEquipmentItems} items");
         }
 
-        if (report.Equipment.Any(e => e.Length is 0 or > MaxEquipmentLength))
+        // RespectNullableAnnotations does not cover collection elements, so null items are checked here.
+        if (report.Equipment.Any(e => e is null || e.Length is 0 or > MaxEquipmentLength))
         {
-            errors.Add($"equipment: each item must be 1-{MaxEquipmentLength} characters");
+            errors.Add($"equipment: each item must be a non-null string of 1-{MaxEquipmentLength} characters");
         }
 
         if (report.Equipment.Distinct(StringComparer.OrdinalIgnoreCase).Count() != report.Equipment.Count)

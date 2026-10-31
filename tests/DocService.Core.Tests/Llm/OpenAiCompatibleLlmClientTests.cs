@@ -117,6 +117,19 @@ public class OpenAiCompatibleLlmClientTests
         Assert.Equal(500, ex.StatusCode);
     }
 
+    [Theory]
+    [InlineData("<html>Bad gateway</html>")]
+    [InlineData("{\"choices\":\"oops\"}")]
+    [InlineData("{\"choices\":[{\"message\":{\"content\":42}}]}")]
+    public async Task UnreadableBody_MapsToProviderException(string body)
+    {
+        var handler = StubHttpMessageHandler.Json(body);
+
+        var ex = await Assert.ThrowsAsync<LlmProviderException>(() => Create(handler).CompleteAsync(Request(), Ct));
+
+        Assert.Contains("unreadable", ex.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task EmptyChoices_MapsToProviderException()
     {

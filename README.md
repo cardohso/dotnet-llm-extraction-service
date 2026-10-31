@@ -297,7 +297,7 @@ For Gemini's OpenAI-compatible endpoint (untested), set `Llm:BaseUrl` to
 
 CI ([`ci.yml`](.github/workflows/ci.yml)) runs on every push and pull request: `dotnet format
 --verify-no-changes`, a Release build with warnings as errors and nullable reference types on, the full
-test suite (134 tests, no network), and the evaluation harness against the fake provider.
+test suite (142 tests, no network), and the evaluation harness against the fake provider.
 
 ## Licence
 

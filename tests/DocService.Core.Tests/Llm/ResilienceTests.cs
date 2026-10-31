@@ -6,6 +6,7 @@ using DocService.Llm;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace DocService.Core.Tests.Llm;
 
@@ -18,7 +19,13 @@ public class ResilienceTests
     private const string OkReply =
         """{"choices":[{"message":{"content":"{}"},"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":1}}""";
 
-    private static ServiceProvider Build(StubHttpMessageHandler stub, Dictionary<string, string?>? overrides = null)
+    private static ServiceProvider Build(StubHttpMessageHandler stub, Dictionary<string, string?>? overrides = null) =>
+        Build(stub, out _, overrides);
+
+    private static ServiceProvider Build(
+        StubHttpMessageHandler stub,
+        out IConfigurationRoot configuration,
+        Dictionary<string, string?>? overrides = null)
     {
         var settings = new Dictionary<string, string?>
         {
@@ -31,7 +38,7 @@ public class ResilienceTests
             settings[key] = value;
         }
 
-        var configuration = new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
+        configuration = new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
         var services = new ServiceCollection();
         services.AddLogging(b => b.SetMinimumLevel(LogLevel.None));
         services.AddLlmClient(configuration)!.ConfigurePrimaryHttpMessageHandler(() => stub);
@@ -129,5 +136,67 @@ public class ResilienceTests
 
         var result = await provider.GetRequiredService<ILlmClient>().CompleteAsync(Request, Ct);
         Assert.Equal("{}", result.Content);
+    }
+
+    [Fact]
+    public async Task ConfigurationReload_DoesNotBreakTheClient()
+    {
+        var stub = StubHttpMessageHandler.Json(OkReply);
+        using var provider = Build(stub, out var configuration);
+        var client = provider.GetRequiredService<ILlmClient>();
+        await client.CompleteAsync(Request, Ct);
+
+        configuration.Reload();
+        await Task.Delay(200, Ct);
+
+        for (var i = 0; i < 3; i++)
+        {
+            var result = await provider.GetRequiredService<ILlmClient>().CompleteAsync(Request, Ct);
+            Assert.Equal("{}", result.Content);
+        }
+
+        Assert.False(provider.GetRequiredService<ILlmCircuitState>().IsOpen);
+    }
+
+    [Fact]
+    public async Task LongRetryAfter_NotWaitedOut_MapsToRateLimited()
+    {
+        var stub = new StubHttpMessageHandler((_, _) =>
+        {
+            var limited = new HttpResponseMessage(HttpStatusCode.TooManyRequests);
+            limited.Headers.RetryAfter = new RetryConditionHeaderValue(TimeSpan.FromSeconds(120));
+            return Task.FromResult(limited);
+        });
+        using var provider = Build(stub);
+
+        var started = Stopwatch.GetTimestamp();
+        var ex = await Assert.ThrowsAsync<LlmRateLimitedException>(
+            () => provider.GetRequiredService<ILlmClient>().CompleteAsync(Request, Ct));
+
+        Assert.Equal(TimeSpan.FromSeconds(120), ex.RetryAfter);
+        Assert.Single(stub.Calls);
+        Assert.True(Stopwatch.GetElapsedTime(started) < TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
+    public void UnknownProvider_ThrowsOptionsValidationException_WithClearMessage()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Llm:Provider"] = "Groq" })
+            .Build();
+
+        var ex = Assert.Throws<OptionsValidationException>(() => new ServiceCollection().AddLlmClient(configuration));
+
+        Assert.Contains("Llm:Provider 'Groq' is not valid", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ProviderName_IsCaseInsensitive()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Llm:Provider"] = "fake" })
+            .Build();
+
+        Assert.Null(new ServiceCollection().AddLlmClient(configuration));
     }
 }

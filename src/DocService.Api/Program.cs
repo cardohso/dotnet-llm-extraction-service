@@ -17,7 +17,16 @@ builder.Logging.ClearProviders();
 builder.Logging.AddJsonConsole(options => options.IncludeScopes = true);
 
 builder.Services.AddDocServiceCore(builder.Configuration);
-builder.Services.AddLlmClient(builder.Configuration);
+try
+{
+    builder.Services.AddLlmClient(builder.Configuration);
+}
+catch (OptionsValidationException ex)
+{
+    Console.Error.WriteLine($"Invalid configuration: {string.Join(" ", ex.Failures)}");
+    return 1;
+}
+
 builder.Services.AddDocServiceRateLimiting(builder.Configuration);
 builder.Services.AddHealthChecks().AddCheck<ProviderCircuitHealthCheck>("llm-circuit", tags: ["ready"]);
 

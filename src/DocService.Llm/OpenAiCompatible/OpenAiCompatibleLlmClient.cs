@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using DocService.Core.Llm;
 using Microsoft.Extensions.Options;
@@ -30,12 +31,25 @@ public sealed class OpenAiCompatibleLlmClient(
             throw MapFailure(response);
         }
 
-        var payload = JsonNode.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        try
+        {
+            return ParseCompletion(body, settings.Model, (int)response.StatusCode);
+        }
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException or FormatException)
+        {
+            throw new LlmProviderException("Provider returned an unreadable response", (int)response.StatusCode, ex);
+        }
+    }
+
+    private static LlmResult ParseCompletion(string body, string configuredModel, int status)
+    {
+        var payload = JsonNode.Parse(body);
         var choice = payload?["choices"]?.AsArray().FirstOrDefault();
         var content = choice?["message"]?["content"]?.GetValue<string>();
         if (choice is null || content is null)
         {
-            throw new LlmProviderException("Provider returned no completion", (int)response.StatusCode);
+            throw new LlmProviderException("Provider returned no completion", status);
         }
 
         var usage = new LlmUsage(
@@ -44,7 +58,7 @@ public sealed class OpenAiCompatibleLlmClient(
         return new LlmResult(
             content,
             usage,
-            payload?["model"]?.GetValue<string>() ?? settings.Model,
+            payload?["model"]?.GetValue<string>() ?? configuredModel,
             choice["finish_reason"]?.GetValue<string>() ?? "stop");
     }
 

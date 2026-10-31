@@ -100,6 +100,15 @@ public class IncidentReportSchemaTests
     }
 
     [Fact]
+    public void Parse_NullEquipmentItem_Error()
+    {
+        var result = _schema.Parse(Json(equipment: "[null]"));
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.StartsWith("equipment", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Parse_MalformedJson_Error()
     {
         var result = _schema.Parse("not json at all");
