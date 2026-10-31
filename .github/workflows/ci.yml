@@ -16,3 +16,5 @@ jobs:
       - run: dotnet format --verify-no-changes --no-restore
       - run: dotnet build -c Release --no-restore
       - run: dotnet test --solution dotnet-llm-extraction-service.slnx -c Release --no-build
+      - name: Evaluation harness smoke run (fake provider, no network)
+        run: dotnet run --project eval/DocService.Eval -c Release --no-build -- --provider fake --out "$RUNNER_TEMP/eval"

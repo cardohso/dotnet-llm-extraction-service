@@ -40,7 +40,7 @@ public static class ServiceCollectionExtensions
         var httpClient = services.AddHttpClient<ILlmClient, OpenAiCompatibleLlmClient>((serviceProvider, client) =>
             client.BaseAddress = serviceProvider.GetRequiredService<IOptions<LlmOptions>>().Value.BaseUrl);
 
-        httpClient
+        var pipeline = httpClient
             .AddStandardResilienceHandler(options =>
             {
                 options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(30);
@@ -55,8 +55,13 @@ public static class ServiceCollectionExtensions
                 options.CircuitBreaker.MinimumThroughput = 5;
                 options.CircuitBreaker.BreakDuration = TimeSpan.FromSeconds(30);
                 options.CircuitBreaker.StateProvider = circuit;
-            })
-            .Configure(section.GetSection("Resilience"));
+            });
+
+        var overrides = section.GetSection("Resilience");
+        if (overrides.Exists())
+        {
+            pipeline.Configure(overrides);
+        }
 
         return httpClient;
     }

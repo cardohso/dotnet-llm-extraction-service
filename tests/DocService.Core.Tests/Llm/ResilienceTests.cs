@@ -113,4 +113,21 @@ public class ResilienceTests
         Assert.True(circuit.IsOpen);
         Assert.Equal(callsBefore, stub.Calls.Count);
     }
+
+    [Fact]
+    public async Task NoResilienceSection_UsesCodeDefaults()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Llm:ApiKey"] = "test-key" })
+            .Build();
+        var services = new ServiceCollection();
+        services.AddLogging();
+        var stub = StubHttpMessageHandler.Json(OkReply);
+
+        services.AddLlmClient(configuration)!.ConfigurePrimaryHttpMessageHandler(() => stub);
+        using var provider = services.BuildServiceProvider();
+
+        var result = await provider.GetRequiredService<ILlmClient>().CompleteAsync(Request, Ct);
+        Assert.Equal("{}", result.Content);
+    }
 }
